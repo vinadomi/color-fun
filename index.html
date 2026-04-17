@@ -172,14 +172,31 @@ document.querySelectorAll(’.scene-btn’).forEach((b,j)=>b.classList.toggle(�
 document.getElementById(‘loading’).style.display = ‘flex’;
 const key = SCENES[i].key;
 if(!imgCache[key]){
-const img = new Image();
-img.crossOrigin = ‘anonymous’;
-await new Promise((res, rej) => {
-img.onload = res;
-img.onerror = rej;
-img.src = IMAGES[key];
-});
-imgCache[key] = img;
+try {
+// Convert base64 data URI to a Blob URL — more reliable on mobile
+const dataURI = IMAGES[key];
+const base64 = dataURI.split(’,’)[1];
+const binary  = atob(base64);
+const bytes   = new Uint8Array(binary.length);
+for(let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
+const blob    = new Blob([bytes], {type: ‘image/svg+xml’});
+const blobURL = URL.createObjectURL(blob);
+
+```
+  const img = new Image();
+  await new Promise((res, rej) => {
+    img.onload = res;
+    img.onerror = (e) => { console.error('Image load failed', key, e); rej(e); };
+    img.src = blobURL;
+  });
+  imgCache[key] = img;
+} catch(err) {
+  console.error('switchScene error:', err);
+  document.getElementById('loading').textContent = 'Error loading image 😢';
+  return;
+}
+```
+
 }
 const img = imgCache[key];
 fitCanvas(img);
@@ -386,7 +403,10 @@ else drawFresh(img);
 /* ── init ── */
 buildPalette();
 buildSceneBar();
-switchScene(0);
+switchScene(0).catch(err => {
+console.error(‘Init failed:’, err);
+document.getElementById(‘loading’).textContent = ’Failed to load 😢 ’ + err.message;
+});
 </script>
 
 </body>
